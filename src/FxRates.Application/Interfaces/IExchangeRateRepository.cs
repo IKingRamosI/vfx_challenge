@@ -1,6 +1,6 @@
 ﻿using FxRates.Domain;
 
-namespace FxRates.Application.Abstractions;
+namespace FxRates.Application.Interfaces;
 
 /// <summary>Persistence for exchange rates.</summary>
 public interface IExchangeRateRepository
