@@ -1,3 +1,4 @@
+using FxRates.Api.ErrorHandling;
 using FxRates.Application;
 using FxRates.Application.Interfaces;
 using FxRates.Infrastructure.AlphaVantage;
@@ -12,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // Application
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
@@ -36,6 +39,8 @@ builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("Ra
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
