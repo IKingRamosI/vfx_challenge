@@ -1,7 +1,7 @@
 ﻿using FxRates.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace FxRates.Infrastructure;
+namespace FxRates.Infrastructure.Persistence;
 
 public sealed class FxRatesDbContext(DbContextOptions<FxRatesDbContext> options) : DbContext(options)
 {
