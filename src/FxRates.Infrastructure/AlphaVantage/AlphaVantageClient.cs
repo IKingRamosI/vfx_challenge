@@ -8,12 +8,20 @@ using Microsoft.Extensions.Options;
 
 namespace FxRates.Infrastructure.AlphaVantage;
 
+/// <summary>Gets bid and ask prices from AlphaVantage's CURRENCY_EXCHANGE_RATE function.</summary>
 public sealed class AlphaVantageClient(HttpClient http,
     IOptions<AlphaVantageOptions> options,
     ILogger<AlphaVantageClient> logger) : IExchangeRateProvider
 {
     public async Task<ExternalRate?> GetRateAsync(string baseCurrency, string quoteCurrency, CancellationToken ct)
     {
+        // Without a key AlphaVantage answers "Error Message", which would look like an unknown pair (404)
+        if (string.IsNullOrWhiteSpace(options.Value.ApiKey))
+        {
+            logger.LogError("AlphaVantage API key is not configured (AlphaVantage:ApiKey)");
+            throw new ExternalProviderUnavailableException();
+        }
+
         var url = "query?function=CURRENCY_EXCHANGE_RATE" +
             $"&from_currency={Uri.EscapeDataString(baseCurrency)}" +
             $"&to_currency={Uri.EscapeDataString(quoteCurrency)}" +

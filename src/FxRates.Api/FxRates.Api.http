@@ -1,5 +1,59 @@
 @FxRates.Api_HostAddress = http://localhost:5113
 
-
+# A request for every endpoint, plus two error examples.
+# In Visual Studio, click "Send request" above a request.
+# With Docker, change the address above to http://localhost:8080.
 
 ###
+# List all stored rates
+GET {{FxRates.Api_HostAddress}}/api/rates
+
+###
+# Rate for a pair: from the database, or fetched from AlphaVantage and stored the first time
+GET {{FxRates.Api_HostAddress}}/api/rates/USD/EUR
+
+###
+# Rate by id (use an id returned by the requests above)
+GET {{FxRates.Api_HostAddress}}/api/rates/1
+
+###
+# Create a rate manually
+POST {{FxRates.Api_HostAddress}}/api/rates
+Content-Type: application/json
+
+{
+  "baseCurrency": "EUR",
+  "quoteCurrency": "GBP",
+  "bid": 0.85,
+  "ask": 0.86
+}
+
+###
+# Replace the bid and ask of a rate
+PUT {{FxRates.Api_HostAddress}}/api/rates/1
+Content-Type: application/json
+
+{
+  "bid": 0.87,
+  "ask": 0.88
+}
+
+###
+# Delete a rate
+DELETE {{FxRates.Api_HostAddress}}/api/rates/1
+
+###
+# Error example: an invalid currency code returns 400 problem details
+GET {{FxRates.Api_HostAddress}}/api/rates/US1/EUR
+
+###
+# Error example: bid above ask returns 400 problem details
+POST {{FxRates.Api_HostAddress}}/api/rates
+Content-Type: application/json
+
+{
+  "baseCurrency": "EUR",
+  "quoteCurrency": "CHF",
+  "bid": 0.95,
+  "ask": 0.94
+}

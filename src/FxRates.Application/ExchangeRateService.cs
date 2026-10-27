@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FxRates.Application;
 
+/// <summary>Use cases for exchange rates: CRUD and the pair lookup that falls back to AlphaVantage.</summary>
 public sealed class ExchangeRateService(
     IExchangeRateRepository repository,
     IExchangeRateProvider provider,

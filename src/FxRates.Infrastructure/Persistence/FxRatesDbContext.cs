@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FxRates.Infrastructure.Persistence;
 
+/// <summary>EF Core context: the ExchangeRates table, its column types and the unique index per pair.</summary>
 public sealed class FxRatesDbContext(DbContextOptions<FxRatesDbContext> options) : DbContext(options)
 {
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();

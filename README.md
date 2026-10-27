@@ -19,7 +19,7 @@ An ASP.NET Core Web API that manages foreign exchange rates. Each currency pair 
 
 ## How to run
 
-You need a free AlphaVantage API key: https://www.alphavantage.co/support/#api-key
+You need a [free AlphaVantage API key](https://www.alphavantage.co/support/#api-key). Without it, the API still runs, but fetching a pair that is not stored yet returns 503.
 
 ### Option 1: Docker (recommended)
 
@@ -114,6 +114,8 @@ dotnet test
 | PUT | `/api/rates/{id}` | 200 (replaces bid and ask; source becomes `Manual`) | 400 · 404 |
 | DELETE | `/api/rates/{id}` | 204 | 404 |
 
+[`src/FxRates.Api/FxRates.Api.http`](src/FxRates.Api/FxRates.Api.http) has a ready-made request for every endpoint (in Visual Studio, click **Send request**).
+
 Example:
 
 ```bash
@@ -193,7 +195,7 @@ Dependencies point inwards: Api → Application ← Infrastructure, and everythi
 - **One row per pair.** A unique index on `(BaseCurrency, QuoteCurrency)` enforces it in the database; the service also checks before inserting so a duplicate returns 409.
 - **Money types.** Prices are `decimal(18,6)`, never floating point. `LastUpdatedUtc` is the time the rate was stored or last updated, set by the entity in UTC.
 - **Errors in one place.** The service throws typed exceptions and a single `IExceptionHandler` maps them to HTTP: domain rule → 400, duplicate pair → 409, provider failure → 503, anything else → 500 without internal details. Controllers have no try/catch.
-- **The provider's errors are not the client's.** AlphaVantage answers HTTP 200 even for errors, so the client reads the body: an unknown pair becomes 404, a rate limit, invalid data, a timeout or a network error becomes 503.
+- **The provider's errors are not the client's.** AlphaVantage answers HTTP 200 even for errors, so the client reads the body: an unknown pair becomes 404; a rate limit, invalid data, a timeout or a network error becomes 503. A missing API key also becomes 503: it is checked before the call, because AlphaVantage reports it the same way as an unknown pair.
 - **Resilience.** The AlphaVantage `HttpClient` uses the standard resilience handler (retries with backoff, timeouts, circuit breaker). EF Core retries transient SQL errors, e.g. while the SQL Server container is starting.
 - **Messaging.** One long-lived RabbitMQ connection, created on first use and re-created if it closes; a short-lived channel per publish, because channels should not be shared by concurrent publishers. A broker failure never fails the request.
 - **Logging.** Structured `ILogger` messages with searchable fields (`{RateId}`, `{Base}`, `{Quote}`) show where each rate came from. Exceptions that reach the client are logged by the exception handler (4xx as warnings, 5xx as errors); the AlphaVantage client adds a warning with the provider's reason. `System.Net.Http.HttpClient` logs are kept at `Warning` because the AlphaVantage URL contains the API key.
