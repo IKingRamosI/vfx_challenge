@@ -13,7 +13,7 @@ An ASP.NET Core Web API that manages foreign exchange rates. Each currency pair 
 
 ## Tech stack
 
-.NET 10 · ASP.NET Core (controllers) · Entity Framework Core 10 + SQL Server · RabbitMQ (`RabbitMQ.Client` 7) · `Microsoft.Extensions.Http.Resilience` · Swagger (Swashbuckle) · xUnit + NSubstitute · Docker Compose
+.NET 10 · ASP.NET Core (controllers) · Entity Framework Core 10 + SQL Server · RabbitMQ (`RabbitMQ.Client` 7) · `Microsoft.Extensions.Http.Resilience` · Swagger (Swashbuckle) · xUnit + NSubstitute · `WebApplicationFactory` + SQLite for integration tests · Docker Compose
 
 ---
 
@@ -87,10 +87,19 @@ The `FxRates` database is created in `(localdb)\MSSQLLocalDB` on startup. You ca
 dotnet test
 ```
 
-26 unit tests, no database or Docker needed:
+35 tests, no SQL Server, RabbitMQ or Docker needed.
+
+**Unit tests** (`FxRates.UnitTests`, 26):
 
 - **Domain** (`ExchangeRateTests`): currency code validation and normalization, positive prices, bid not above ask, same base and quote rejected, invalid updates leave the rate unchanged.
 - **Service** (`ExchangeRateServiceTests`, with NSubstitute fakes): the pair endpoint reads the database first and only calls AlphaVantage when needed; an unknown pair returns 404 and stores nothing; invalid provider data is rejected; a RabbitMQ failure does not fail the request; duplicates are rejected; update and delete of missing ids.
+
+**Integration tests** (`FxRates.IntegrationTests`, 9): `WebApplicationFactory` hosts the real API in memory and the tests call it over HTTP, so routing, the controller, the service, EF Core and the exception handler all run for real. Only the external systems are replaced: SQLite in memory instead of SQL Server, and fakes for AlphaVantage and RabbitMQ. Every test gets its own host and database, so tests never share data.
+
+- The second request for a pair is served from the database: AlphaVantage is called once and one event is published.
+- Unknown pair → 404; AlphaVantage unavailable → 503 problem details; invalid currency code → 400 without calling AlphaVantage.
+- POST returns 201 with a `Location` header that reads the stored rate back; a duplicate pair → 409; bid above ask → 400 and nothing stored.
+- PUT changes are persisted (read back with a new request); DELETE returns 204, then the rate is gone (404).
 
 ---
 
@@ -171,7 +180,8 @@ src/
   FxRates.Infrastructure  EF Core (DbContext, repository, migrations), AlphaVantage client, RabbitMQ publisher.
   FxRates.Api             Controller, global exception handler, Program.cs (registrations).
 tests/
-  FxRates.UnitTests       Domain rules and service logic.
+  FxRates.UnitTests         Domain rules and service logic.
+  FxRates.IntegrationTests  The full HTTP pipeline, with an isolated in-memory database per test.
 ```
 
 Dependencies point inwards: Api → Application ← Infrastructure, and everything depends on Domain. The Application only knows interfaces (`IExchangeRateRepository`, `IExchangeRateProvider`, `IEventPublisher`), so the service is tested without a database, network or broker, and any of them can be replaced without touching the business logic (e.g. Azure Service Bus instead of RabbitMQ).
@@ -203,7 +213,7 @@ Dependencies point inwards: Api → Application ← Infrastructure, and everythi
 - **No pagination** on `GET /api/rates`; fine for a few hundred pairs.
 - **Timestamps read back from SQL Server are not marked as UTC**, so they are serialized without the `Z` suffix. An EF Core value converter would fix it.
 - **Migrations on startup** are convenient for a demo; with several instances in production they should run in the deployment pipeline (set `Database:ApplyMigrationsOnStartup` to `false`).
-- **No integration tests.** The unit tests cover the domain and the service with mocks. Next step: `WebApplicationFactory` hosting the real API in memory, with a SQL Server container (Testcontainers) and fakes for AlphaVantage and RabbitMQ, to test the HTTP pipeline, EF Core mappings and error handling end to end.
+- **Integration tests use SQLite, not SQL Server.** They are fast and need no Docker, but SQLite is not identical to SQL Server (e.g. decimal precision and unique-key errors). Next step: Testcontainers with a real SQL Server image. There are also no tests for the real AlphaVantage client and RabbitMQ publisher; a fake `HttpMessageHandler` and a RabbitMQ container would cover them.
 - **No CI pipeline.** Next step: a GitHub Actions workflow that restores, builds and runs the tests on every push and pull request.
 - **RabbitMQ uses the default `guest` credentials**; in a real environment they would come from configuration and a secret store.
 - **AlphaVantage free tier** has a low daily request limit; production use needs a paid plan or a streaming provider.

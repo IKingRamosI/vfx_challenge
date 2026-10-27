@@ -50,6 +50,7 @@ if (app.Environment.IsDevelopment())
 app.MapControllers();
 
 // Create or update the database at startup, so whoever runs the project needs no extra command.
+// The integration tests switch this off (the migrations are for SQL Server and the tests use SQLite).
 if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 {
     using var scope = app.Services.CreateScope();
@@ -57,3 +58,6 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 }
 
 app.Run();
+
+/// <summary>Public so the integration tests can host the API with WebApplicationFactory.</summary>
+public partial class Program;
